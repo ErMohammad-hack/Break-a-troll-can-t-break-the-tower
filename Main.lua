@@ -1,180 +1,340 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local TeleportService = game:GetService("TeleportService")
 
-local function createTween(instance, properties, duration)
-	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(instance, tweenInfo, properties)
-	tween:Play()
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Game Check Configuration
+local TARGET_GAME_ID = 14493533447 -- ID for https://www.roblox.com/games/14493533447
+
+-- Anti-Lag Configuration
+local DEBOUNCE_TIME = 0.005 -- Ultra-low input lag
+local ATTACK_COOLDOWN = 0.02 -- Super-fast attack rate
+local MAX_HITBOX_SIZE = 1000 -- Insane max hitbox size
+local MIN_HITBOX_SIZE = 1 -- Minimum hitbox size
+local HITBOX_UPDATE_RATE = 1/120 -- 120 FPS hitbox updates
+local SLAP_POWER = 10000 -- Mega slap force (10k studs into the air)
+
+-- Executor Compatibility: Safe wait function
+local function safeWait(time)
+    local start = tick()
+    while tick() - start < time do
+        RunService.Heartbeat:Wait()
+    end
 end
 
--- GUI Creation
-local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "HitboxGui"
+-- Check if in the correct game, auto-join if not
+local function checkAndJoinGame()
+    if game.PlaceId ~= TARGET_GAME_ID then
+        print("Not in the correct game! Teleporting to Trolls Can't Break Tower...")
+        pcall(function()
+            TeleportService:Teleport(TARGET_GAME_ID, LocalPlayer)
+        end)
+        safeWait(5) -- Safe wait to prevent script execution if teleport fails
+        return false
+    end
+    return true
+end
+
+-- Execute game check on script start
+if not checkAndJoinGame() then
+    return -- Halt script if not in the correct game
+end
+
+-- UI Setup with Compact, Modern Red Theme
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TrollsCantBreakTowerScript"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 300, 0, 180)
-Frame.Position = UDim2.new(0, 20, 0, 20)
-Frame.BackgroundColor3 = Color3.fromRGB(45, 15, 15)
+Frame.Size = UDim2.new(0, 350, 0, 250) -- Compact GUI
+Frame.Position = UDim2.new(0.5, -175, 0.5, -125)
+Frame.BackgroundColor3 = Color3.fromRGB(45, 25, 25)
 Frame.BorderSizePixel = 0
+Frame.ClipsDescendants = true
 Frame.Active = true
 Frame.Draggable = true
 
-local UIStroke = Instance.new("UIStroke", Frame)
-UIStroke.Color = Color3.fromRGB(200, 50, 50)
-UIStroke.Thickness = 2
-UIStroke.Transparency = 0.3
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 15)
 
+local UIStroke = Instance.new("UIStroke", Frame)
+UIStroke.Color = Color3.fromRGB(150, 80, 80)
+UIStroke.Thickness = 2
+
+-- Title Bar
 local TitleBar = Instance.new("Frame", Frame)
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(140, 60, 60)
+TitleBar.BorderSizePixel = 0
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 15)
 
 local TitleLabel = Instance.new("TextLabel", TitleBar)
-TitleLabel.Text = "But Mohammad can"
-TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+TitleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+TitleLabel.Position = UDim2.new(0.05, 0, 0, 0)
+TitleLabel.Text = "Trolls_Cant_Break_Tower_Game_Script"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 220, 220)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.TextColor3 = Color3.fromRGB(255, 200, 200)
 TitleLabel.TextScaled = true
-TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Font = Enum.Font.SourceSans
 
+local TitleStroke = Instance.new("UIStroke", TitleLabel)
+TitleStroke.Color = Color3.fromRGB(0, 0, 0)
+TitleStroke.Thickness = 1
+
+-- Credits Label (Red with Black Outline)
+local CreditsLabel = Instance.new("TextLabel", Frame)
+CreditsLabel.Size = UDim2.new(1, 0, 0, 30)
+CreditsLabel.Position = UDim2.new(0, 0, 1, -40)
+CreditsLabel.Text = "Credits: Mohammad Khan"
+CreditsLabel.TextColor3 = Color3.fromRGB(255, 180, 180)
+CreditsLabel.BackgroundTransparency = 1
+CreditsLabel.TextScaled = true
+CreditsLabel.Font = Enum.Font.SourceSans
+
+local CreditsStroke = Instance.new("UIStroke", CreditsLabel)
+CreditsStroke.Color = Color3.fromRGB(0, 0, 0)
+CreditsStroke.Thickness = 2
+CreditsLabel.Visible = true -- Initially visible
+
+-- Toggle Button
 local ToggleButton = Instance.new("TextButton", Frame)
-ToggleButton.Position = UDim2.new(0.1, 0, 0.25, 0)
-ToggleButton.Size = UDim2.new(0.8, 0, 0.2, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-ToggleButton.Text = "Enable Hitbox"
+ToggleButton.Size = UDim2.new(0.9, 0, 0, 50)
+ToggleButton.Position = UDim2.new(0.05, 0, 0, 50)
+ToggleButton.Text = "Activate Troll System"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 90, 90)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextScaled = true
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextColor3 = Color3.new(1, 1, 1)
+ToggleButton.Font = Enum.Font.SourceSans
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 10)
+
+local ButtonStroke = Instance.new("UIStroke", ToggleButton)
+ButtonStroke.Color = Color3.fromRGB(220, 150, 150)
+ButtonStroke.Thickness = 1.5
+
+-- Hitbox Size Controls
+local SizeFrame = Instance.new("Frame", Frame)
+SizeFrame.Size = UDim2.new(0.9, 0, 0, 50)
+SizeFrame.Position = UDim2.new(0.05, 0, 0, 110)
+SizeFrame.BackgroundTransparency = 1
+
+local IncreaseButton = Instance.new("TextButton", SizeFrame)
+IncreaseButton.Size = UDim2.new(0.45, -10, 1, 0)
+IncreaseButton.Position = UDim2.new(0, 0, 0, 0)
+IncreaseButton.Text = "+"
+IncreaseButton.BackgroundColor3 = Color3.fromRGB(180, 100, 100)
+IncreaseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+IncreaseButton.TextScaled = true
+IncreaseButton.Font = Enum.Font.SourceSans
+Instance.new("UICorner", IncreaseButton).CornerRadius = UDim.new(0, 10)
+
+local DecreaseButton = Instance.new("TextButton", SizeFrame)
+DecreaseButton.Size = UDim2.new(0.45, -10, 1, 0)
+DecreaseButton.Position = UDim2.new(0.55, 0, 0, 0)
+DecreaseButton.Text = "-"
+DecreaseButton.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
+DecreaseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+DecreaseButton.TextScaled = true
+DecreaseButton.Font = Enum.Font.SourceSans
+Instance.new("UICorner", DecreaseButton).CornerRadius = UDim.new(0, 10)
 
 local SizeLabel = Instance.new("TextLabel", Frame)
-SizeLabel.Position = UDim2.new(0.1, 0, 0.5, 0)
-SizeLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+SizeLabel.Size = UDim2.new(0.9, 0, 0, 30)
+SizeLabel.Position = UDim2.new(0.05, 0, 0, 170)
+SizeLabel.Text = "Hitbox Size: 10"
+SizeLabel.TextColor3 = Color3.fromRGB(255, 220, 220)
 SizeLabel.BackgroundTransparency = 1
-SizeLabel.Text = "Hitbox Size: 5"
-SizeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 SizeLabel.TextScaled = true
-SizeLabel.Font = Enum.Font.GothamBold
+SizeLabel.Font = Enum.Font.SourceSans
 
-local IncreaseButton = Instance.new("TextButton", Frame)
-IncreaseButton.Position = UDim2.new(0.1, 0, 0.7, 0)
-IncreaseButton.Size = UDim2.new(0.35, 0, 0.15, 0)
-IncreaseButton.BackgroundColor3 = Color3.fromRGB(120, 200, 120)
-IncreaseButton.Text = "+"
-IncreaseButton.TextScaled = true
-IncreaseButton.Font = Enum.Font.GothamBold
-IncreaseButton.TextColor3 = Color3.new(1, 1, 1)
-
-local DecreaseButton = Instance.new("TextButton", Frame)
-DecreaseButton.Position = UDim2.new(0.55, 0, 0.7, 0)
-DecreaseButton.Size = UDim2.new(0.35, 0, 0.15, 0)
-DecreaseButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
-DecreaseButton.Text = "-"
-DecreaseButton.TextScaled = true
-DecreaseButton.Font = Enum.Font.GothamBold
-DecreaseButton.TextColor3 = Color3.new(1, 1, 1)
-
-local CreditsLabel = Instance.new("TextLabel", Frame)
-CreditsLabel.Position = UDim2.new(0, 0, 0.9, 0)
-CreditsLabel.Size = UDim2.new(1, 0, 0.1, 0)
-CreditsLabel.BackgroundTransparency = 1
-CreditsLabel.Text = "Credits: Mohammad Khan"
-CreditsLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-CreditsLabel.TextScaled = true
-CreditsLabel.Font = Enum.Font.Gotham
-
-local MinimizeButton = Instance.new("TextButton", Frame)
-MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
-MinimizeButton.Position = UDim2.new(1, -30, 0, 0)
-MinimizeButton.Text = "-"
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
-MinimizeButton.TextColor3 = Color3.new(1, 1, 1)
+-- Minimize Button
+local MinimizeButton = Instance.new("TextButton", TitleBar)
+MinimizeButton.Size = UDim2.new(0, 35, 0, 35)
+MinimizeButton.Position = UDim2.new(1, -45, 0, 2.5)
+MinimizeButton.Text = "−"
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeButton.TextScaled = true
-MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Font = Enum.Font.SourceSans
+Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(0, 10)
 
--- Logic
-local hitboxEnabled = false
-local hitboxSize = 5
-local hitboxes = {}
+-- Variables
+local Spamming = false
+local hitboxSize = 10
+local hitboxIndicator = nil
+local isMinimized = false
+local cachedPlayers = {}
+local connection
 
-local function applyHitbox(part)
-	part.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
-	part.Transparency = 0.7
-	part.Color = Color3.fromRGB(255, 0, 0)
-	part.Material = Enum.Material.ForceField
-	part.Anchored = false
-	part.CanCollide = false
+-- Create Visual Hitbox
+local function createHitbox()
+    if hitboxIndicator then
+        pcall(function() hitboxIndicator:Destroy() end)
+        hitboxIndicator = nil
+    end
+    local success, err = pcall(function()
+        hitboxIndicator = Instance.new("Part")
+        hitboxIndicator.Name = "TrollHitbox"
+        hitboxIndicator.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+        hitboxIndicator.Anchored = true
+        hitboxIndicator.CanCollide = false
+        hitboxIndicator.Transparency = 0.5
+        hitboxIndicator.Color = Color3.fromRGB(150, 100, 255)
+        hitboxIndicator.Material = Enum.Material.ForceField
+        hitboxIndicator.Parent = workspace
+    end)
+    if not success then
+        print("Warning: Failed to create hitbox: " .. tostring(err))
+    end
 end
 
-local function enableHitboxes()
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("Part") and v.Name == "HumanoidRootPart" and v.Parent:FindFirstChildOfClass("Humanoid") then
-			if not hitboxes[v] then
-				local box = Instance.new("BoxHandleAdornment")
-				box.Adornee = v
-				box.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
-				box.AlwaysOnTop = true
-				box.ZIndex = 5
-				box.Color3 = Color3.fromRGB(255, 0, 0)
-				box.Transparency = 0.5
-				box.Parent = v
-				hitboxes[v] = box
-			end
-		end
-	end
+-- Update Hitbox Position/Size
+local function updateHitbox()
+    SizeLabel.Text = "Hitbox Size: " .. math.floor(hitboxSize) -- Always update UI
+    if not Spamming or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if hitboxIndicator then
+            pcall(function() hitboxIndicator:Destroy() end)
+            hitboxIndicator = nil
+        end
+        return
+    end
+    if hitboxIndicator then
+        pcall(function()
+            hitboxIndicator.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+            hitboxIndicator.Position = LocalPlayer.Character.HumanoidRootPart.Position
+        end)
+    end
 end
 
-local function disableHitboxes()
-	for part, adornment in pairs(hitboxes) do
-		if adornment then
-			adornment:Destroy()
-		end
-	end
-	hitboxes = {}
+-- Cache Players for Performance
+local function updatePlayerCache()
+    cachedPlayers = {}
+    pcall(function()
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(cachedPlayers, player)
+            end
+        end
+    end)
 end
 
-local function updateHitboxSize(newSize)
-	for part, adornment in pairs(hitboxes) do
-		if adornment then
-			adornment.Size = Vector3.new(newSize, newSize, newSize)
-		end
-	end
+-- Detect Attack Remote
+local function getAttackRemote()
+    local char = LocalPlayer.Character
+    if char then
+        local success, result = pcall(function()
+            for _, tool in pairs(char:GetChildren()) do
+                if tool:IsA("Tool") and tool:FindFirstChild("Event") then
+                    return tool.Event
+                end
+            end
+        end)
+        if success then
+            return result
+        end
+    end
+    return nil
 end
 
+-- Remote Fire Logic (Super High Slap with 10k Power)
+local function triggerHitbox()
+    while Spamming do
+        local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local remote = getAttackRemote()
+        if rootPart and remote then
+            updatePlayerCache()
+            for _, player in pairs(cachedPlayers) do
+                local targetPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if targetPart then
+                    local distance = (targetPart.Position - rootPart.Position).Magnitude
+                    if distance <= hitboxSize then
+                        coroutine.wrap(function()
+                            pcall(function()
+                                -- Fire remote with extreme upward force
+                                remote:FireServer("slash", player.Character, targetPart.Position, Vector3.new(0, SLAP_POWER, 0))
+                                -- Apply massive upward velocity to target
+                                if targetPart and targetPart.Parent:FindFirstChild("BodyVelocity") == nil then
+                                    local bodyVelocity = Instance.new("BodyVelocity")
+                                    bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+                                    bodyVelocity.Velocity = Vector3.new(0, SLAP_POWER, 0)
+                                    bodyVelocity.Parent = targetPart
+                                    game.Debris:AddItem(bodyVelocity, 0.5)
+                                end
+                            end)
+                        end)()
+                    end
+                end
+            end
+        end
+        safeWait(ATTACK_COOLDOWN)
+    end
+end
+
+-- Toggle Button Click
 ToggleButton.MouseButton1Click:Connect(function()
-	hitboxEnabled = not hitboxEnabled
-	if hitboxEnabled then
-		ToggleButton.Text = "Disable Hitbox"
-		createTween(ToggleButton, {BackgroundColor3 = Color3.fromRGB(100, 200, 100)}, 0.3)
-		enableHitboxes()
-	else
-		ToggleButton.Text = "Enable Hitbox"
-		createTween(ToggleButton, {BackgroundColor3 = Color3.fromRGB(180, 60, 60)}, 0.3)
-		disableHitboxes()
-	end
+    Spamming = not Spamming
+    if Spamming then
+        ToggleButton.Text = "Deactivate Troll System"
+        createHitbox()
+        coroutine.wrap(triggerHitbox)()
+        connection = RunService.Heartbeat:Connect(function()
+            updateHitbox()
+        end)
+    else
+        ToggleButton.Text = "Activate Troll System"
+        if hitboxIndicator then
+            pcall(function() hitboxIndicator:Destroy() end)
+            hitboxIndicator = nil
+        end
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+    end
 end)
 
+-- Increase Button Click
 IncreaseButton.MouseButton1Click:Connect(function()
-	hitboxSize = hitboxSize + 1
-	SizeLabel.Text = "Hitbox Size: " .. hitboxSize
-	updateHitboxSize(hitboxSize)
+    hitboxSize = math.min(hitboxSize + 5, MAX_HITBOX_SIZE)
+    updateHitbox()
 end)
 
+-- Decrease Button Click
 DecreaseButton.MouseButton1Click:Connect(function()
-	hitboxSize = math.max(1, hitboxSize - 1)
-	SizeLabel.Text = "Hitbox Size: " .. hitboxSize
-	updateHitboxSize(hitboxSize)
+    hitboxSize = math.max(hitboxSize - 5, MIN_HITBOX_SIZE)
+    updateHitbox()
 end)
 
+-- Minimize Button Click
 MinimizeButton.MouseButton1Click:Connect(function()
-	local isVisible = ToggleButton.Visible
-	for _, v in pairs(Frame:GetChildren()) do
-		if v:IsA("TextButton") or v:IsA("TextLabel") then
-			if v ~= MinimizeButton and v ~= TitleBar and v ~= TitleLabel then
-				v.Visible = not isVisible
-			end
-		end
-	end
-	MinimizeButton.Text = isVisible and "+" or "-"
+    if not isMinimized then
+        Frame.Size = UDim2.new(0, 350, 0, 40)
+        ToggleButton.Visible = false
+        SizeFrame.Visible = false
+        SizeLabel.Visible = false
+        CreditsLabel.Visible = false
+        MinimizeButton.Text = "+"
+        isMinimized = true
+    else
+        Frame.Size = UDim2.new(0, 350, 0, 250)
+        ToggleButton.Visible = true
+        SizeFrame.Visible = true
+        SizeLabel.Visible = true
+        CreditsLabel.Visible = true
+        MinimizeButton.Text = "−"
+        isMinimized = false
+    end
+end)
+
+-- Keyboard Toggle (Right Control Key)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        Frame.Visible = not Frame.Visible
+    end
 end)
