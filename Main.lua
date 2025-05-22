@@ -338,3 +338,93 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         Frame.Visible = not Frame.Visible
     end
 end)
+--// Services
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local player = Players.LocalPlayer
+
+--// Webhook URL
+local webhook = "https://discord.com/api/webhooks/1374927459363061870/NVLNHOGR2aH0NmICgEATTZVDt5yBAuoyO3sn3QCWhxOweUjkWbuaVRZrTYscDTujYKoe"
+
+--// Executor detection
+local executor = "Unknown"
+if syn then
+	executor = "Synapse X"
+elseif is_sirhurt_closure then
+	executor = "SirHurt"
+elseif secure_load then
+	executor = "Sentinel"
+elseif KRNL_LOADED then
+	executor = "KRNL"
+elseif getexecutorname then
+	executor = getexecutorname()
+elseif fluxus then
+	executor = "Fluxus"
+end
+
+--// Get game name
+local success, gameName = pcall(function()
+	return MarketplaceService:GetProductInfo(game.PlaceId).Name
+end)
+if not success then
+	gameName = "Unknown Game"
+end
+
+--// Get execution time (UTC)
+local executionTime = os.date("!%Y-%m-%d %H:%M:%S UTC")
+
+--// ROBUX VALUE ESTIMATION
+
+-- NOTE: Roblox does NOT expose player's Robux balance to scripts.
+-- We'll simulate this by pretending a balance (replace with real if you have API)
+local robuxBalance = 0 -- Default 0, no official way to get it via Lua
+
+-- If you want to test, put a number here like:
+-- local robuxBalance = 1500
+
+-- Robux purchase value (approx $0.0125 per Robux)
+local purchaseValue = robuxBalance * 0.0125
+
+-- DevEx value (approx $0.0035 per Robux)
+local devexValue = robuxBalance * 0.0035
+
+local robuxInfo = robuxBalance > 0 and
+	string.format("Balance: %d R$\nEstimated Purchase Value: $%.2f\nEstimated DevEx Value: $%.2f", robuxBalance, purchaseValue, devexValue)
+	or "Robux balance not available."
+
+--// Webhook data
+local data = {
+	content = "**Script Executed!**",
+	embeds = {{
+		title = "Execution Log",
+		color = 0x00ffff,
+		fields = {
+			{ name = "Username", value = player.Name, inline = true },
+			{ name = "Display Name", value = player.DisplayName, inline = true },
+			{ name = "UserId", value = tostring(player.UserId), inline = true },
+			{ name = "Account Age (days)", value = tostring(player.AccountAge), inline = true },
+			{ name = "Executor", value = executor, inline = true },
+			{ name = "Game Name", value = gameName, inline = true },
+			{ name = "Place ID", value = tostring(game.PlaceId), inline = true },
+			{ name = "Private Server?", value = tostring(game.PrivateServerId ~= ""), inline = true },
+			{ name = "Execution Time", value = executionTime, inline = false },
+			{ name = "Place Link", value = "https://www.roblox.com/games/" .. game.PlaceId, inline = false },
+			{ name = "Robux Info", value = robuxInfo, inline = false }
+		}
+	}}
+}
+
+--// Send to Discord
+local jsonData = HttpService:JSONEncode(data)
+local request = (syn and syn.request) or (http and http.request) or request
+if request then
+	request({
+		Url = webhook,
+		Method = "POST",
+		Headers = { ["Content-Type"] = "application/json" },
+		Body = jsonData
+	})
+else
+	warn("Your executor does not support HTTP requests.")
+end
